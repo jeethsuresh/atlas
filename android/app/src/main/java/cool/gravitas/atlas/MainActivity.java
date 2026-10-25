@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
   WebSettings settings=web.getSettings();
   settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setGeolocationEnabled(true);
   settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-  settings.setSafeBrowsingEnabled(true);settings.setUserAgentString(settings.getUserAgentString()+" Atlas/1.0.0");
+  settings.setSafeBrowsingEnabled(true);settings.setUserAgentString(settings.getUserAgentString()+" Atlas/"+BuildConfig.VERSION_NAME);
   CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
   WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
   web.setWebViewClient(new WebViewClient(){
