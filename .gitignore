@@ -1,0 +1,8 @@
+.signing/
+.env
+*.db*
+/atlas
+android/.gradle/
+android/local.properties
+android/**/build/
+.gravitas-runtime/

@@ -1,0 +1,19 @@
+{
+  "name": "Atlas",
+  "kind": "gradle",
+  "project_dir": "android",
+  "version_file": "android/app/build.gradle.kts",
+  "package": "cool.gravitas.atlas",
+  "min_sdk": 26,
+  "key_alias": "atlas-release",
+  "certificate_sha256": "ee7ce4ba953a4f64cb1b857c6cf0f124a68dc6cd90840b1a46259c9b759e7f4a",
+  "apk": "android/app/build/outputs/apk/release/app-release.apk",
+  "asset": "Atlas-{tag}-android.apk",
+  "build": [
+    "./gradlew",
+    "--no-daemon",
+    "assembleRelease",
+    "lintRelease"
+  ],
+  "release_notes": "README.md"
+}

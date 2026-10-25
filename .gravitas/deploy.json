@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "app": "atlas",
+  "namespace": "atlas",
+  "host": "maps.gravitas.cool",
+  "test_target": "test",
+  "memory": "256Mi",
+  "storage": {
+    "size": "5Gi",
+    "mount": "/data"
+  },
+  "runtime_secret": "atlas-runtime",
+  "env": {
+    "APP_URL": "https://maps.gravitas.cool",
+    "DB_PATH": "/data/atlas.db"
+  },
+  "verify": [
+    {
+      "path": "/api/friends",
+      "status": 401,
+      "cache_control_contains": "no-store"
+    }
+  ]
+}
