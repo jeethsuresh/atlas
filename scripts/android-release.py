@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -196,6 +197,17 @@ def stage(config, name, code):
     print("Verified", config["name"], name, "build", code, "SHA256", checksum)
 
 
+def uploaded_draft(tag, request=None, pause=time.sleep):
+    request = request or api
+    for attempt in range(8):
+        release = next((item for item in request("releases?per_page=100") if item["tag_name"] == tag), None)
+        if release and release["draft"]:
+            return release
+        if attempt < 7:
+            pause(2)
+    raise ValueError("The uploaded draft could not be verified")
+
+
 def publish(config, name):
     tag = "v" + name
     if api("releases/tags/" + tag, missing=True) or api("git/ref/tags/" + tag, missing=True):
@@ -214,9 +226,7 @@ def publish(config, name):
     notes += "\n\nInstall the APK over the existing app. See SHA256SUMS and release-manifest.json for the package, permanent certificate and download digest."
     subprocess.run(["gh", "release", "create", tag, "--repo", repo, "--target", os.environ["GITHUB_SHA"],
                     "--draft", "--title", config["name"] + " " + name, "--notes", notes, *map(str, files)], check=True)
-    release = next((item for item in api("releases?per_page=100") if item["tag_name"] == tag), None)
-    if not release or not release["draft"]:
-        raise ValueError("The uploaded draft could not be verified")
+    release = uploaded_draft(tag)
     assets = {item["name"]: item for item in release["assets"]}
     if set(assets) != {p.name for p in files}:
         raise ValueError("Uploaded assets are incomplete; the draft remains unpublished")

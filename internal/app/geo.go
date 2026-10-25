@@ -82,6 +82,13 @@ func (g *geoService) fetch(w http.ResponseWriter, r *http.Request, key, endpoint
 		fail(w, 502, "Map provider returned an invalid response")
 		return
 	}
+	if strings.HasPrefix(key, "places:") || strings.HasPrefix(key, "streets:") {
+		data, err = normalizeGeo(key, data)
+		if err != nil {
+			fail(w, 502, "Map provider returned an invalid response")
+			return
+		}
+	}
 	g.mu.Lock()
 	if len(g.cache) >= 128 {
 		g.cache = map[string]cached{}
@@ -116,8 +123,8 @@ func (g *geoService) places(w http.ResponseWriter, r *http.Request) {
 	}
 	lat = float64(int(lat*1000)) / 1000
 	lng = float64(int(lng*1000)) / 1000
-	q := fmt.Sprintf(`[out:json][timeout:20];(nwr(around:1800,%.3f,%.3f)["amenity"~"^(cafe|restaurant|bar|pub|fast_food|library|pharmacy)$"]["name"];nwr(around:1800,%.3f,%.3f)["shop"]["name"];);out center 160;`, lat, lng, lat, lng)
-	g.fetch(w, r, "places:"+q, "https://overpass-api.de/api/interpreter", url.Values{"data": {q}}.Encode(), false)
+	q := url.Values{"lat": {fmt.Sprintf("%.3f", lat)}, "lon": {fmt.Sprintf("%.3f", lng)}, "radius": {"2"}, "limit": {"50"}, "osm_tag": {"amenity:cafe", "amenity:restaurant", "amenity:bar", "amenity:pub", "amenity:fast_food", "amenity:pharmacy", "shop"}}
+	g.fetch(w, r, "places:"+q.Encode(), "https://photon.komoot.io/reverse?"+q.Encode(), "", false)
 }
 func (g *geoService) streets(w http.ResponseWriter, r *http.Request) {
 	lat, lng, ok := center(r)
@@ -126,9 +133,84 @@ func (g *geoService) streets(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Enter a street name near the map center")
 		return
 	}
-	escaped, _ := json.Marshal(name)
-	q := fmt.Sprintf(`[out:json][timeout:20];way(around:5000,%f,%f)[highway][name=%s];out geom 50;`, lat, lng, escaped)
-	g.fetch(w, r, "streets:"+q, "https://overpass-api.de/api/interpreter", url.Values{"data": {q}}.Encode(), false)
+	q := url.Values{"q": {name}, "format": {"jsonv2"}, "limit": {"5"}, "polygon_geojson": {"1"}, "viewbox": {fmt.Sprintf("%f,%f,%f,%f", lng-.06, lat+.045, lng+.06, lat-.045)}, "bounded": {"1"}}
+	g.fetch(w, r, "streets:"+q.Encode(), "https://nominatim.openstreetmap.org/search?"+q.Encode(), "", true)
+}
+
+func normalizeGeo(key string, data []byte) ([]byte, error) {
+	elements := []map[string]any{}
+	if strings.HasPrefix(key, "places:") {
+		var collection struct {
+			Features []struct {
+				Geometry struct {
+					Coordinates []float64 `json:"coordinates"`
+				} `json:"geometry"`
+				Properties struct {
+					ID     int64  `json:"osm_id"`
+					Type   string `json:"osm_type"`
+					Key    string `json:"osm_key"`
+					Value  string `json:"osm_value"`
+					Name   string `json:"name"`
+					Street string `json:"street"`
+					Number string `json:"housenumber"`
+				} `json:"properties"`
+			} `json:"features"`
+		}
+		if err := json.Unmarshal(data, &collection); err != nil {
+			return nil, err
+		}
+		for _, f := range collection.Features {
+			p := f.Properties
+			c := f.Geometry.Coordinates
+			if len(c) != 2 || !validCoord(c[1], c[0]) || p.Name == "" {
+				continue
+			}
+			kind := map[string]string{"N": "node", "W": "way", "R": "relation"}[p.Type]
+			if kind == "" {
+				continue
+			}
+			elements = append(elements, map[string]any{"type": kind, "id": p.ID, "lat": c[1], "lon": c[0], "tags": map[string]string{"name": p.Name, p.Key: p.Value, "addr:street": p.Street, "addr:housenumber": p.Number}})
+		}
+	} else {
+		var results []struct {
+			Category string `json:"category"`
+			Class    string `json:"class"`
+			GeoJSON  struct {
+				Type        string          `json:"type"`
+				Coordinates json.RawMessage `json:"coordinates"`
+			} `json:"geojson"`
+		}
+		if err := json.Unmarshal(data, &results); err != nil {
+			return nil, err
+		}
+		for _, p := range results {
+			if p.Category != "highway" && p.Class != "highway" {
+				continue
+			}
+			var lines [][][]float64
+			switch p.GeoJSON.Type {
+			case "LineString":
+				var line [][]float64
+				if json.Unmarshal(p.GeoJSON.Coordinates, &line) == nil {
+					lines = append(lines, line)
+				}
+			case "MultiLineString":
+				_ = json.Unmarshal(p.GeoJSON.Coordinates, &lines)
+			}
+			for _, line := range lines {
+				points := []map[string]float64{}
+				for _, c := range line {
+					if len(c) == 2 && validCoord(c[1], c[0]) {
+						points = append(points, map[string]float64{"lat": c[1], "lon": c[0]})
+					}
+				}
+				if len(points) > 1 {
+					elements = append(elements, map[string]any{"geometry": points})
+				}
+			}
+		}
+	}
+	return json.Marshal(map[string]any{"elements": elements})
 }
 func (g *geoService) route(w http.ResponseWriter, r *http.Request) {
 	lat, lng, ok := center(r)

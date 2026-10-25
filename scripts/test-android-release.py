@@ -17,6 +17,16 @@ spec.loader.exec_module(release)
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_waits_for_uploaded_draft_to_become_visible(self):
+        calls=[]
+        def request(path):
+            calls.append(path)
+            return [] if len(calls)<3 else [{"tag_name":"v1.0.0","draft":True}]
+        self.assertTrue(release.uploaded_draft("v1.0.0",request,lambda _:None)["draft"])
+        self.assertEqual(len(calls),3)
+        with self.assertRaises(ValueError):
+            release.uploaded_draft("v1.0.0",lambda _:[],lambda _:None)
+
     def setUp(self):
         self.config = {"kind": "flutter", "version_file": "pubspec.yaml", "package": "example.app",
                        "certificate_sha256": "a" * 64, "min_sdk": 24}

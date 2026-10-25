@@ -19,6 +19,10 @@
       "path": "/api/friends",
       "status": 401,
       "cache_control_contains": "no-store"
+    },
+    {
+      "path": "/api/places?lat=43.651&lng=-79.391",
+      "status": 200
     }
   ]
 }
