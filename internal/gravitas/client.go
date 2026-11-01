@@ -32,6 +32,7 @@ type Identity struct {
 	Issuer         string `json:"issuer"`
 	Subject        string `json:"sub"`
 	Username       string `json:"username"`
+	Name           string `json:"name"`
 	Domain         string `json:"domain"`
 	UserID         string `json:"user_id"`
 	SessionID      string `json:"session_id,omitempty"`
@@ -265,7 +266,7 @@ func (c *Client) Callback(w http.ResponseWriter, r *http.Request) (Identity, str
 	}
 	c = selected
 	identity, err = c.exchange(q.Get("code"), f.Verifier, c.AppURL+"/auth/gravitas/callback")
-	if err == nil && f.Username != "" && identity.UserID != f.Username {
+	if err == nil && f.Username != "" && identity.UserID != "" && identity.UserID != f.Username {
 		return Identity{}, "", ErrLoginRequired
 	}
 	return identity, SafeNext(f.Next), err
@@ -328,7 +329,7 @@ func (c *Client) exchangeGrant(code, verifier, redirect string) (Identity, issue
 	if err = c.getJSON(m.Profile, tokens.AccessToken, &identity); err != nil {
 		return identity, tokens, err
 	}
-	if identity.Subject == "" || len(identity.Subject) > 256 || identity.Username == "" || identity.Domain != m.Domain || identity.UserID != "@"+identity.Username+":"+m.Domain {
+	if identity.Subject == "" || len(identity.Subject) > 256 || identity.Domain != m.Domain || (identity.UserID != "" && identity.UserID != "@"+identity.Username+":"+m.Domain) {
 		return Identity{}, tokens, ErrLoginRequired
 	}
 	identity.Issuer = c.Issuer
