@@ -158,7 +158,7 @@ func (s *Server) protected(next userHandler) http.HandlerFunc {
 			return
 		}
 		owner := id.Issuer + "|" + id.Subject
-		if _, err = s.db.ExecContext(r.Context(), `INSERT INTO users(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name`, owner, id.Username); err != nil {
+		if _, err = s.db.ExecContext(r.Context(), `INSERT INTO users(id,name) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name`, owner, profileName(id.Name)); err != nil {
 			fail(w, 500, "Unable to load account")
 			return
 		}
@@ -360,4 +360,11 @@ func (s *Server) stopLocation(w http.ResponseWriter, r *http.Request, id string)
 		return
 	}
 	w.WriteHeader(204)
+}
+
+func profileName(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return "Gravitas account"
+	}
+	return name
 }
