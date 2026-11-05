@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check web/app.js && node --check web/sw.js
+      - run: node --check web/app.js && node --check web/sw.js && node scripts/test-navigation-history.cjs
       - run: python3 scripts/test-android-release.py && python3 scripts/android-release.py validate
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: Test in the production Docker toolchain

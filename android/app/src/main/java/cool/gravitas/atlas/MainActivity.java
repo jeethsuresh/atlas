@@ -25,6 +25,7 @@ public class MainActivity extends Activity {
   super.onCreate(savedInstanceState);
   web=new WebView(this);
   FrameLayout root=new FrameLayout(this);root.addView(web);setContentView(root);
+  cool.gravitas.navigation.GravitasEdgeNavigation.install(this, this::onBackPressed, () -> navigate("forward"));
   root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;});
   root.requestApplyInsets();
   WebSettings settings=web.getSettings();
@@ -61,6 +62,11 @@ public class MainActivity extends Activity {
  @Override protected void onSaveInstanceState(Bundle out){web.saveState(out);super.onSaveInstanceState(out);}
  @Override protected void onPause(){if(locationCallback==null)web.evaluateJavascript("if(typeof stopSharing==='function')stopSharing();",null);CookieManager.getInstance().flush();web.onPause();super.onPause();}
  @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
- @Override public void onBackPressed(){if(web.canGoBack())web.goBack();else super.onBackPressed();}
+ private void navigate(String direction){
+  web.evaluateJavascript("typeof gravitasNavigate==='function'&&gravitasNavigate('"+direction+"')", result->{
+   if("back".equals(direction)&&!"true".equals(result))finish();
+  });
+ }
+ @Override public void onBackPressed(){navigate("back");}
  @Override protected void onDestroy(){if(locationCallback!=null)locationCallback.invoke(locationOrigin,false,false);web.destroy();super.onDestroy();}
 }
