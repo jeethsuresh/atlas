@@ -1,5 +1,7 @@
 {
   "schema": 1,
+  "image_repository": "ghcr.io/jeethsuresh/atlas-private",
+  "image_pull_secret": "gravitas-ghcr",
   "app": "atlas",
   "namespace": "atlas",
   "host": "maps.gravitas.cool",
