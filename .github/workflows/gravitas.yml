@@ -90,7 +90,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/jeethsuresh/atlas:${{ github.sha }}
+          tags: ghcr.io/jeethsuresh/atlas-private:${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -118,5 +118,5 @@ jobs:
         uses: ./.gravitas-runtime
         with:
           config: .gravitas/deploy.json
-          image: ghcr.io/jeethsuresh/atlas@${{ needs.image.outputs.digest }}
+          image: ghcr.io/jeethsuresh/atlas-private@${{ needs.image.outputs.digest }}
           kubeconfig: ${{ secrets.GRAVITAS_KUBECONFIG }}
