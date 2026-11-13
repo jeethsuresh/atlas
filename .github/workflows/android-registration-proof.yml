@@ -1,0 +1,77 @@
+name: Android registration proof
+on:
+  workflow_dispatch:
+    inputs:
+      recipient_certificate:
+        description: Base64-encoded public PEM certificate for encrypting the proof artifact
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  proof:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: android-release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Sign and encrypt the ownership proof
+        env:
+          ADI_VERIFICATION_SNIPPET: ${{ secrets.ANDROID_REGISTRATION_PROOF_SNIPPET }}
+          RECIPIENT_CERTIFICATE: ${{ inputs.recipient_certificate }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          proof="$(mktemp -d)"
+          trap 'rm -rf "$proof"' EXIT
+          [[ "$ADI_VERIFICATION_SNIPPET" =~ ^[A-Z0-9]+$ ]]
+          package="$(jq -er .package android-release.json)"
+          [[ "$package" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]
+          fingerprint="$(jq -er .certificate_sha256 android-release.json)"
+          [[ "$RELEASE_KEY_ALIAS" == "$(jq -er .key_alias android-release.json)" ]]
+
+          printf '%s' "$RECIPIENT_CERTIFICATE" | base64 --decode > "$proof/recipient.pem"
+          openssl x509 -in "$proof/recipient.pem" -noout
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$proof/release.jks"
+          mkdir "$proof/assets"
+          printf '%s\n' "$ADI_VERIFICATION_SNIPPET" > "$proof/assets/adi-registration.properties"
+          cat > "$proof/AndroidManifest.xml" <<EOF
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="$package" android:versionCode="1">
+              <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36" />
+              <application android:hasCode="false" />
+          </manifest>
+          EOF
+
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$tools/aapt2" link -I "$ANDROID_HOME/platforms/android-36/android.jar" \
+            --manifest "$proof/AndroidManifest.xml" -A "$proof/assets" -o "$proof/unsigned.apk"
+          "$tools/apksigner" sign --ks "$proof/release.jks" --ks-key-alias "$RELEASE_KEY_ALIAS" \
+            --ks-pass env:RELEASE_STORE_PASSWORD --key-pass env:RELEASE_KEY_PASSWORD \
+            --v4-signing-enabled false --out "$proof/proof.apk" "$proof/unsigned.apk"
+          actual="$("$tools/apksigner" verify --print-certs "$proof/proof.apk" |
+            sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p')"
+          [[ "$actual" == "$fingerprint" ]]
+          openssl cms -encrypt -binary -aes-256-gcm -in "$proof/proof.apk" \
+            -outform DER -out "$RUNNER_TEMP/android-registration-proof.cms" "$proof/recipient.pem"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-android-registration-proof
+          path: ${{ runner.temp }}/android-registration-proof.cms
+          if-no-files-found: error
+          retention-days: 1
