@@ -14,6 +14,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from android_registration import require_registered
+
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 
@@ -221,6 +223,7 @@ def publish(config, name):
     changes = changelog(changes_data, name, manifest["versionCode"])
     if manifest["changelogSha256"] != hashlib.sha256(changes_data).hexdigest():
         raise ValueError("The staged changelog changed after verification")
+    require_registered(config["package"], config["certificate_sha256"])
     repo = os.environ["GITHUB_REPOSITORY"]
     notes = "What's new in " + name + "\n\n" + "\n".join("- " + text for text in changes["changes"])
     notes += "\n\nInstall the APK over the existing app. See SHA256SUMS and release-manifest.json for the package, permanent certificate and download digest."

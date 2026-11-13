@@ -156,9 +156,11 @@ class ReleaseChecks(unittest.TestCase):
             (root / "SHA256SUMS").write_text("fixture")
             with patch.dict(os.environ, {"RUNNER_TEMP": directory, "GITHUB_REPOSITORY": "owner/app", "GITHUB_SHA": "commit"}), \
                  patch.object(release, "api", side_effect=[None, None, [{"draft": True, "tag_name": "v1.2.3", "assets": []}]]), \
+                 patch.object(release, "require_registered") as registered, \
                  patch.object(release.subprocess, "run") as run:
                 with self.assertRaises(ValueError):
-                    release.publish({"name": "Example"}, "1.2.3")
+                    release.publish({"name": "Example", "package": "dev.example.app", "certificate_sha256": "a" * 64}, "1.2.3")
+                registered.assert_called_once_with("dev.example.app", "a" * 64)
                 self.assertEqual(run.call_count, 1)
                 self.assertIn("--draft", run.call_args.args[0])
 
