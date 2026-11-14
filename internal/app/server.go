@@ -2,6 +2,7 @@ package app
 
 import (
 	"atlas/internal/gravitas"
+	"atlas/internal/storecatalog"
 	"atlas/web"
 	"crypto/rand"
 	"crypto/sha256"
@@ -104,6 +105,7 @@ func (s *Server) Handler() http.Handler {
 			fail(w, 503, "Unable to sign in")
 			return
 		}
+		storecatalog.Register(r.Context(), id.Issuer, id.CheckToken)
 		http.Redirect(w, r, gravitas.SafeNext(next), 303)
 	})
 	mux.HandleFunc("POST /auth/logout", func(w http.ResponseWriter, r *http.Request) {

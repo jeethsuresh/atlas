@@ -3,6 +3,7 @@ package main
 import (
 	"atlas/internal/app"
 	"atlas/internal/gravitas"
+	"atlas/internal/storecatalog"
 	"context"
 	"log"
 	"net/http"
@@ -41,6 +42,7 @@ func main() {
 	server := &http.Server{Addr: addr, Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 35 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	go storecatalog.Run(ctx)
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 20*time.Second)

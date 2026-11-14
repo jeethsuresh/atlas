@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "apps": [
+    {
+      "id": "atlas",
+      "name": "Atlas",
+      "packageName": "cool.gravitas.atlas",
+      "repository": "jeethsuresh/atlas",
+      "assetName": "Atlas-{tag}-android.apk",
+      "certificateSha256": "ee7ce4ba953a4f64cb1b857c6cf0f124a68dc6cd90840b1a46259c9b759e7f4a",
+      "description": "Build an OpenStreetMap view around your favorite places. Save businesses to lists, highlight streets and plan driving routes. Choose when to share your location with friends while Atlas is open.",
+      "website": "https://maps.gravitas.cool"
+    }
+  ]
+}
