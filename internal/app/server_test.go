@@ -191,7 +191,11 @@ func TestStateSurvivesRestart(t *testing.T) {
 }
 func TestHealthAndStaticApp(t *testing.T) {
 	s := fixture(t)
-	for _, path := range []string{"/healthz", "/", "/app.js", "/icon.svg", "/manifest.webmanifest"} {
+	for _, path := range []string{
+		"/healthz", "/", "/app.js", "/icon.svg", "/manifest.webmanifest",
+		"/icons/apple-touch-icon.png", "/icons/icon-192.png", "/icons/icon-512.png",
+		"/icons/icon-maskable-192.png", "/icons/icon-maskable-512.png",
+	} {
 		w := httptest.NewRecorder()
 		s.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != 200 {
