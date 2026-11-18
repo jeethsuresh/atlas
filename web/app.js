@@ -102,8 +102,8 @@ function addPlaceMarker(p,g,saved){if(!validPoint(p))return;const marker=L.marke
 function findPlace(id){return places.find(p=>p.id===id)||savedPlaces().find(p=>p.id===id)||(selected?.id===id?selected:null)}
 function showPlace(p){selected=p;$('#map-detail').innerHTML=`<button class="icon-button detail-close" data-action="close-detail" aria-label="Close place">${icon('close')}</button><div class="detail-category">${esc(p.label||p.category||'Place')}</div><h2 class="detail-title">${esc(p.name)}</h2>${p.address?`<div class="detail-address">${esc(p.address)}</div>`:''}<div class="detail-actions"><button class="primary" data-action="save-selected">${icon('bookmark')} ${isSaved(p)?'Manage saved lists':'Save to a list'}</button><button class="secondary" data-action="route-selected">${icon('route')} Directions</button></div>`;$('#map-detail').hidden=false;map.panTo([p.lat,p.lng]);closeMobile();rememberNavigation()}
 let placeNonce=0;async function loadPlaces(){const nonce=++placeNonce;loadingPlaces=true;placesError='';renderPanel();const c=map.getCenter();try{const data=await api(`/api/places?lat=${c.lat.toFixed(3)}&lng=${c.lng.toFixed(3)}`);if(nonce!==placeNonce)return;const dedup=new Set();places=(data.elements||[]).map(el=>{const tags=el.tags||{},pos=el.center||el;const kind=tags.shop?'shop':tags.amenity==='cafe'?'cafe':['restaurant','bar','pub','fast_food'].includes(tags.amenity)?'restaurant':'other';const address=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ');return {id:`osm-${el.type}-${el.id}`,name:tags.name,lat:pos.lat,lng:pos.lon,category:kind,label:tags.shop?tags.shop.replaceAll('_',' '):(tags.amenity||'place').replaceAll('_',' '),address}}).filter(p=>p.name&&validPoint(p)&&!dedup.has(p.name+Math.round(p.lat*10000))&&dedup.add(p.name+Math.round(p.lat*10000))).sort((a,b)=>map.distance(c,[a.lat,a.lng])-map.distance(c,[b.lat,b.lng]));places.forEach(p=>{const d=map.distance(c,[p.lat,p.lng]);p.distance=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km'});}catch(e){if(nonce===placeNonce)placesError=e.message}finally{if(nonce===placeNonce){loadingPlaces=false;renderPanel();renderMap()}}}
-let saveChain=Promise.resolve();function persist({quiet=false}={}){if(!me){localStorage.setItem('atlas-guest',JSON.stringify(state));return Promise.resolve()}
- $('#sync-status').textContent='Saving your map…';const payload=JSON.stringify({lists:state.lists,highlights:state.highlights});saveChain=saveChain.catch(()=>{}).then(async()=>{const data=await api('/api/state',{method:'PUT',body:JSON.stringify({...JSON.parse(payload),revision:state.revision})});state.revision=data.revision;$('#sync-status').textContent='Saved to Gravitas'}).catch(e=>{if(!quiet)toast(e.message);$('#sync-status').textContent='Changes haven’t synced';throw e});saveChain.catch(()=>{});return saveChain}
+let saveChain=Promise.resolve();function persist({quiet=false,snapshot=state}={}){if(!me){localStorage.setItem('atlas-guest',JSON.stringify(snapshot));return Promise.resolve()}
+ $('#sync-status').textContent='Saving your map…';const payload=JSON.stringify({lists:snapshot.lists,highlights:snapshot.highlights});saveChain=saveChain.catch(()=>{}).then(async()=>{const data=await api('/api/state',{method:'PUT',body:JSON.stringify({...JSON.parse(payload),revision:state.revision})});state.revision=data.revision;$('#sync-status').textContent='Saved to Gravitas'}).catch(e=>{if(!quiet)toast(e.message);$('#sync-status').textContent='Changes haven’t synced';throw e});saveChain.catch(()=>{});return saveChain}
 function persistRender(){persist().catch(()=>{});renderPanel();renderMap();if(selected&&!$('#map-detail').hidden)showPlace(selected)}
 function showModal(body,actions=''){const modal=$('#modal');$('#modal-body').innerHTML=body;$('#modal-actions').innerHTML=actions;$('#modal-form').onsubmit=e=>e.preventDefault();modal.showModal();setTimeout(()=>$('#modal-body input')?.focus(),30)}
 function closeModal(){const dialog=$('#modal');if(dialog.dataset.saving!=='true')dialog.close()}
@@ -148,10 +148,15 @@ function savePlace(place){
   dialog.querySelectorAll('button').forEach(control=>control.setAttribute('aria-disabled','true'));
   button.dataset.pending='true';
   feedback.textContent='Saving…';
-  list.places=add?[...original,{...place}]:original.filter(item=>item.id!==place.id);
+  const places=add?[...original,{...place}]:original.filter(item=>item.id!==place.id);
+  const snapshot={...state,lists:lists.map(item=>item===list?{...item,places}:item)};
   try{
-   await persist({quiet:true});
-   if(state.lists!==lists)return;
+   await persist({quiet:true,snapshot});
+   if(state.lists!==lists){
+    feedback.textContent='The active account changed. Reopen this place to change its lists.';
+    return;
+   }
+   list.places=places;
    button.setAttribute('aria-pressed',String(add));
    button.querySelector('.membership-icon').innerHTML=icon(add?'check':'plus');
    feedback.textContent=add?`Saved to ${list.name}`:`Removed from ${list.name}`;
@@ -163,7 +168,6 @@ function savePlace(place){
     trigger.lastChild.textContent=isSaved(place)?' Manage saved lists':' Save to a list';
    }
   }catch(error){
-   if(state.lists===lists)list.places=original;
    feedback.textContent=error.message||'Couldn’t save this change. Try again.';
    renderPanel();
    renderMap();
