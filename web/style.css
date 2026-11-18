@@ -5,3 +5,32 @@
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .leaflet-overlay-pane svg{width:auto;height:auto}.place-cluster{height:37px;width:37px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#e8e2f4;color:#7a66b1;font-size:12px;font-weight:700;box-shadow:0 2px 9px #34452a26}
+
+/* Each entry opens a layer. Its visibility switch stays a separate action. */
+.layer-link {
+ display:flex;align-items:center;gap:12px;flex:1;min-width:0;
+ text-align:left;border-radius:12px;min-height:48px;
+}
+.layer-link .layer-copy { flex:1; }
+.layer-link:hover .layer-copy strong { color:#425d38; }
+.layer-link:active .layer-icon { transform:scale(1.05,.92); }
+.layer-link .layer-icon { transition:transform 170ms cubic-bezier(.2,.8,.25,1.22); }
+.modal-list-option { min-height:48px;border:1px solid #d9e2d5;transition:background-color 150ms,border-color 150ms; }
+.modal-list-option[aria-pressed="true"] { background:#eaf2e5;border-color:#9eb596; }
+.modal-list-option[aria-disabled="true"] { cursor:wait; }
+.modal-list-option[data-pending="true"] .membership-icon { opacity:.42; }
+.modal-list-option:active:not([aria-disabled="true"]) .membership-icon { transform:scale(1.12,.84); }
+.membership-icon { display:grid;place-items:center;transition:transform 155ms cubic-bezier(.2,.8,.25,1.2); }
+.save-feedback { color:#435c49;font-size:.85rem;margin:10px 0 0; }
+.save-feedback:empty { display:none; }
+.map-pin.pin-settled { animation:atlas-pin-settle 310ms cubic-bezier(.2,.8,.27,1) both; }
+@keyframes atlas-pin-settle {
+ 0% { scale:1.12 .86; }
+ 52% { scale:.96 1.09; }
+ 100% { scale:1; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .layer-link .layer-icon,.modal-list-option,.membership-icon { transition:none; }
+ .layer-link:active .layer-icon,.modal-list-option:active .membership-icon { transform:none; }
+ .map-pin.pin-settled { animation:none; }
+}
