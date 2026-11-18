@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "version": "1.0.2",
-  "versionCode": 3,
+  "version": "1.1.0",
+  "versionCode": 4,
   "changes": [
-    "Swipe inward from the left edge to go back and from the right edge to go forward on Android 14 and later.",
-    "Return to previous browsing destinations without repeating actions; opening a new destination clears forward history."
+    "Save places to lists with clear feedback when the change is saved or needs a retry.",
+    "Map layers have a simpler layout and one control for opening each layer."
   ]
 }

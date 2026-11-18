@@ -36,22 +36,27 @@ function categoryIcon(p){return p.category==='cafe'?'coffee':p.category==='resta
 function savedPlaces(){const all=new Map();state.lists.forEach(l=>l.places.forEach(p=>all.set(p.id,p)));return [...all.values()]}
 function filteredPlaces(){return places.filter(p=>category==='all'||p.category===category)}
 function placeRow(p,remove=false){return `<div class="place-row" data-place="${esc(p.id)}" tabindex="0" role="button" aria-label="View ${esc(p.name)}"><div class="place-thumb ${esc(p.category)}">${icon(categoryIcon(p))}</div><div class="place-text"><div class="place-name">${esc(p.name)}</div><div class="place-meta">${esc(p.label||p.category||'Place')}${p.distance?' · '+p.distance:''}</div></div><button class="save-place ${isSaved(p)?'saved':''}" data-save="${esc(p.id)}" aria-label="${remove?'Remove':isSaved(p)?'Edit saved lists for':'Save'} ${esc(p.name)}">${icon(remove?'close':'bookmark')}</button></div>`}
-function layerCard(id,title,subtitle,color,ico,preview=''){return `<div class="layer-card"><div class="layer-row"><button class="layer-icon ${color}" data-layer-view="${id}" aria-label="Open ${title}">${icon(ico)}</button><button class="layer-copy" data-layer-view="${id}" style="text-align:left"><strong>${title}</strong><small>${subtitle}</small></button><button class="toggle ${layers[id]?'on':''}" role="switch" aria-checked="${layers[id]}" data-toggle="${id}" aria-label="Show ${title}"></button></div>${preview?`<div class="layer-preview">${preview}</div>`:''}</div>`}
+function layerCard(id,title,subtitle,color,ico){
+ return `<div class="layer-card"><div class="layer-row">
+   <button class="layer-link" data-layer-view="${id}">
+     <span class="layer-icon ${color}" aria-hidden="true">${icon(ico)}</span>
+     <span class="layer-copy"><strong>${title}</strong><small>${subtitle}</small></span>
+   </button>
+   <button class="toggle ${layers[id]?'on':''}" role="switch" aria-checked="${layers[id]}" data-toggle="${id}" aria-label="Show ${title}"></button>
+ </div></div>`;
+}
 function intro(eyebrow,title,desc){return `<p class="eyebrow">${eyebrow}</p><h1 class="panel-title">${title}</h1><p class="panel-description">${desc}</p>`}
 function empty(ico,title,desc,button=''){return `<div class="empty-state">${icon(ico)}<h3>${title}</h3><p>${desc}</p>${button}</div>`}
 function renderPanel(){const panel=$('#panel-content');let html='';
  if(view==='layers'){
-  const pins=savedPlaces().length;html=intro('A map that feels like you','Your world,<br>in <em>layers.</em>','The places you love. The paths you take.<br>The people who make it all worthwhile.');
-  html+=`<div class="section-heading"><h2>Your layers</h2><span class="count-badge">4 layers</span></div>`;
-  html+=layerCard('lists','Your lists',`${state.lists.length} lists · ${pins} saved places`,'','bookmark',`<span class="mini-dot"></span> ${state.lists.slice(0,2).map(l=>esc(l.name)).join(' &nbsp;·&nbsp; ')}`);
-  html+=layerCard('routes','Routes & streets',`${state.highlights.length} highlights${routeData?' · 1 route':''}`,'orange','route',`<span class="mini-dot orange"></span> A way there. A path worth keeping.`);
-  html+=layerCard('friends','Find my friends',`${friendData.filter(f=>f.sharing).length} sharing · invite your people`,'blue','friends');
-  html+=layerCard('businesses','Nearby places',`${places.length} places around the map`,'grey','pin');
-  html+=`<div class="section-heading"><h2>Underneath it all</h2><span class="count-badge">BASE MAP</span></div><div class="layer-card"><div class="layer-row"><div class="layer-icon grey">${icon('globe')}</div><div class="layer-copy"><strong>OpenStreetMap</strong><small>Open data. Endless possibilities.</small></div>${icon('check')}</div></div>`;
-  html+=`<div class="section-heading"><h2>Around the corner</h2><button class="text-link" data-action="explore">Explore ${icon('arrow')}</button></div>`;
-  html+=nearbyHTML(4);
+  const pins=savedPlaces().length;
+  html='<h1 class="panel-title">Map layers</h1>';
+  html+=layerCard('lists','Your lists',`${state.lists.length} lists · ${pins} saved places`,'','bookmark');
+  html+=layerCard('routes','Routes & streets',`${state.highlights.length} highlights${routeData?' · 1 route':''}`,'orange','route');
+  html+=layerCard('friends','Friends',`${friendData.filter(f=>f.sharing).length} sharing`,'blue','friends');
+  html+=layerCard('businesses','Nearby places',`${places.length} places`,'grey','pin');
  }else if(view==='explore'){
-  html=intro('Go a little further','Find your<br><em>next favorite.</em>','Explore businesses around the map. Save a good find to a list and make it your own.');
+  html='<h1 class="panel-title">Explore</h1>';
   html+=`<button class="secondary full-width" data-action="refresh">${icon('search')} Search this area</button><div class="section-heading"><h2>${category==='all'?'Nearby places':category==='cafe'?'Coffee spots':category==='restaurant'?'Food & drink':'Shopping'}</h2><span class="count-badge">${filteredPlaces().length} places</span></div>`+nearbyHTML(80);
  }else if(view==='lists'){
   const list=state.lists.find(l=>l.id===activeList);
@@ -82,7 +87,8 @@ function renderPanel(){const panel=$('#panel-content');let html='';
 }
 function nearbyHTML(limit){if(loadingPlaces)return '<p class="nearby-note"><span class="loading-dot">Finding what’s around you…</span></p>';if(placesError)return `<div class="error-message">${esc(placesError)}<button class="text-link" data-action="refresh" style="margin-top:8px">Try again ${icon('arrow')}</button></div>`;const list=filteredPlaces().slice(0,limit);return list.length?list.map(p=>placeRow(p)).join(''):'<p class="nearby-note">No places found here yet. Move the map and search this area to explore somewhere new.</p>'}
 function stepLabel(s){const type=s.maneuver?.type||'continue',mod=s.maneuver?.modifier||'';return `${type==='depart'?'Start':type==='arrive'?'Arrive':type==='turn'?'Turn '+mod:type==='roundabout'?'Take the roundabout':type==='new name'?'Continue':type+' '+mod}${s.name?' on '+s.name:''}`}
-function renderMap(){for(const g of Object.values(groups))g.clearLayers();
+const savedMarkers=new Map();
+function renderMap(){savedMarkers.clear();for(const g of Object.values(groups))g.clearLayers();
  if(layers.businesses){const cells=new Map();filteredPlaces().filter(p=>!layers.lists||!isSaved(p)).slice(0,100).forEach(p=>{const pos=map.project([p.lat,p.lng],map.getZoom()),key=Math.floor(pos.x/52)+':'+Math.floor(pos.y/52);if(!cells.has(key))cells.set(key,[]);cells.get(key).push(p)});for(const points of cells.values()){if(points.length<3){points.forEach(p=>addPlaceMarker(p,groups.businesses,false));continue}const lat=points.reduce((n,p)=>n+p.lat,0)/points.length,lng=points.reduce((n,p)=>n+p.lng,0)/points.length;L.marker([lat,lng],{title:points.length+' nearby places',icon:L.divIcon({className:'',html:'<div class="place-cluster">'+points.length+'</div>',iconSize:[37,37],iconAnchor:[18,18]})}).addTo(groups.businesses).bindTooltip(points.length+' nearby places · zoom in').on('click',()=>map.fitBounds(points.map(p=>[p.lat,p.lng]),{padding:[55,65],maxZoom:Math.min(19,map.getZoom()+2)}))}}
  if(layers.lists)savedPlaces().forEach(p=>addPlaceMarker(p,groups.lists,true));
  if(layers.routes){state.highlights.forEach(h=>{if(!Array.isArray(h.lines))return;h.lines.forEach(line=>{if(!Array.isArray(line)||!line.every(p=>Array.isArray(p)&&p.length===2&&validPoint({lat:p[0],lng:p[1]})))return;L.polyline(line,{color:'#c88c55',weight:7,opacity:.7,lineCap:'round'}).addTo(groups.routes).bindTooltip(esc(h.name))})});
@@ -92,18 +98,83 @@ function renderMap(){for(const g of Object.values(groups))g.clearLayers();
  const n=Object.values(layers).filter(Boolean).length;$('#active-layer-count').textContent=`${n} layers on`;$('#mobile-layer-count').textContent=n;
 }
 map.on('zoomend moveend',renderMap);
-function addPlaceMarker(p,g,saved){if(!validPoint(p))return;const marker=L.marker([p.lat,p.lng],{title:p.name,icon:L.divIcon({className:'',html:`<div class="map-pin ${saved?'saved':esc(p.category)}">${icon(saved?'bookmark':categoryIcon(p))}</div>`,iconSize:[saved?39:35,saved?39:35],iconAnchor:[18,36]})});marker.addTo(g).bindTooltip(esc(p.name),{direction:'top',offset:[0,-31]}).on('click',()=>showPlace(p))}
+function addPlaceMarker(p,g,saved){if(!validPoint(p))return;const marker=L.marker([p.lat,p.lng],{title:p.name,icon:L.divIcon({className:'',html:`<div class="map-pin ${saved?'saved':esc(p.category)}">${icon(saved?'bookmark':categoryIcon(p))}</div>`,iconSize:[saved?39:35,saved?39:35],iconAnchor:[18,36]})});marker.addTo(g).bindTooltip(esc(p.name),{direction:'top',offset:[0,-31]}).on('click',()=>showPlace(p));if(saved)savedMarkers.set(p.id,marker)}
 function findPlace(id){return places.find(p=>p.id===id)||savedPlaces().find(p=>p.id===id)||(selected?.id===id?selected:null)}
-function showPlace(p){selected=p;$('#map-detail').innerHTML=`<button class="icon-button detail-close" data-action="close-detail" aria-label="Close place">${icon('close')}</button><div class="detail-category">${esc(p.label||p.category||'Place')}</div><h2 class="detail-title">${esc(p.name)}</h2><div class="detail-address">${esc(p.address||'On your map. Ready to explore.')}</div><div class="detail-actions"><button class="primary" data-action="save-selected">${icon('bookmark')} ${isSaved(p)?'Saved to lists':'Save to a list'}</button><button class="secondary" data-action="route-selected">${icon('route')} Directions</button></div>`;$('#map-detail').hidden=false;map.panTo([p.lat,p.lng]);closeMobile();rememberNavigation()}
+function showPlace(p){selected=p;$('#map-detail').innerHTML=`<button class="icon-button detail-close" data-action="close-detail" aria-label="Close place">${icon('close')}</button><div class="detail-category">${esc(p.label||p.category||'Place')}</div><h2 class="detail-title">${esc(p.name)}</h2>${p.address?`<div class="detail-address">${esc(p.address)}</div>`:''}<div class="detail-actions"><button class="primary" data-action="save-selected">${icon('bookmark')} ${isSaved(p)?'Manage saved lists':'Save to a list'}</button><button class="secondary" data-action="route-selected">${icon('route')} Directions</button></div>`;$('#map-detail').hidden=false;map.panTo([p.lat,p.lng]);closeMobile();rememberNavigation()}
 let placeNonce=0;async function loadPlaces(){const nonce=++placeNonce;loadingPlaces=true;placesError='';renderPanel();const c=map.getCenter();try{const data=await api(`/api/places?lat=${c.lat.toFixed(3)}&lng=${c.lng.toFixed(3)}`);if(nonce!==placeNonce)return;const dedup=new Set();places=(data.elements||[]).map(el=>{const tags=el.tags||{},pos=el.center||el;const kind=tags.shop?'shop':tags.amenity==='cafe'?'cafe':['restaurant','bar','pub','fast_food'].includes(tags.amenity)?'restaurant':'other';const address=[tags['addr:housenumber'],tags['addr:street']].filter(Boolean).join(' ');return {id:`osm-${el.type}-${el.id}`,name:tags.name,lat:pos.lat,lng:pos.lon,category:kind,label:tags.shop?tags.shop.replaceAll('_',' '):(tags.amenity||'place').replaceAll('_',' '),address}}).filter(p=>p.name&&validPoint(p)&&!dedup.has(p.name+Math.round(p.lat*10000))&&dedup.add(p.name+Math.round(p.lat*10000))).sort((a,b)=>map.distance(c,[a.lat,a.lng])-map.distance(c,[b.lat,b.lng]));places.forEach(p=>{const d=map.distance(c,[p.lat,p.lng]);p.distance=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km'});}catch(e){if(nonce===placeNonce)placesError=e.message}finally{if(nonce===placeNonce){loadingPlaces=false;renderPanel();renderMap()}}}
-let saveChain=Promise.resolve();function persist(){if(!me){localStorage.setItem('atlas-guest',JSON.stringify(state));return Promise.resolve()}
- $('#sync-status').textContent='Saving your map…';const payload=JSON.stringify({lists:state.lists,highlights:state.highlights});saveChain=saveChain.catch(()=>{}).then(async()=>{const data=await api('/api/state',{method:'PUT',body:JSON.stringify({...JSON.parse(payload),revision:state.revision})});state.revision=data.revision;$('#sync-status').textContent='Saved to Gravitas'}).catch(e=>{toast(e.message);$('#sync-status').textContent='Changes haven’t synced';throw e});saveChain.catch(()=>{});return saveChain}
+let saveChain=Promise.resolve();function persist({quiet=false}={}){if(!me){localStorage.setItem('atlas-guest',JSON.stringify(state));return Promise.resolve()}
+ $('#sync-status').textContent='Saving your map…';const payload=JSON.stringify({lists:state.lists,highlights:state.highlights});saveChain=saveChain.catch(()=>{}).then(async()=>{const data=await api('/api/state',{method:'PUT',body:JSON.stringify({...JSON.parse(payload),revision:state.revision})});state.revision=data.revision;$('#sync-status').textContent='Saved to Gravitas'}).catch(e=>{if(!quiet)toast(e.message);$('#sync-status').textContent='Changes haven’t synced';throw e});saveChain.catch(()=>{});return saveChain}
 function persistRender(){persist().catch(()=>{});renderPanel();renderMap();if(selected&&!$('#map-detail').hidden)showPlace(selected)}
 function showModal(body,actions=''){const modal=$('#modal');$('#modal-body').innerHTML=body;$('#modal-actions').innerHTML=actions;$('#modal-form').onsubmit=e=>e.preventDefault();modal.showModal();setTimeout(()=>$('#modal-body input')?.focus(),30)}
-function closeModal(){$('#modal').close()}
+function closeModal(){const dialog=$('#modal');if(dialog.dataset.saving!=='true')dialog.close()}
 function textModal(title,desc,label,initial,onSubmit){showModal(`<h2 class="modal-title">${title}</h2><p class="modal-copy">${desc}</p><label class="field-label" for="modal-input">${label}</label><input id="modal-input" class="field" value="${esc(initial)}" maxlength="80" required autocomplete="off">`,'<button type="button" class="secondary" id="modal-cancel">Cancel</button><button type="submit" class="primary">Save</button>');$('#modal-cancel').onclick=closeModal;$('#modal-form').onsubmit=e=>{e.preventDefault();const val=$('#modal-input').value.trim();if(val){onSubmit(val);closeModal()}}}
 function newList(){textModal('A new little collection.','Give your places a home. You can add businesses from anywhere on the map.','List name','',name=>{const l={id:uid(),name,places:[]};state.lists.push(l);activeList=l.id;persistRender();setView('lists')})}
-function savePlace(p){showModal(`<p class="eyebrow">A GOOD FIND</p><h2 class="modal-title">Save ${esc(p.name)}</h2><p class="modal-copy">Keep it close in one or more of your lists.</p>${state.lists.map(l=>`<button type="button" class="modal-list-option" data-save-list="${esc(l.id)}">${icon('bookmark')}<span>${esc(l.name)}</span>${l.places.some(x=>x.id===p.id)?icon('check'):icon('plus')}</button>`).join('')}`,'<button type="button" id="save-new-list" class="secondary">New list</button><button type="button" id="save-done" class="primary">Done</button>');$('#save-done').onclick=closeModal;$('#save-new-list').onclick=()=>{closeModal();newList()};$('#modal-body').querySelectorAll('[data-save-list]').forEach(b=>b.onclick=()=>{const l=state.lists.find(x=>x.id===b.dataset.saveList);const i=l.places.findIndex(x=>x.id===p.id);if(i>=0)l.places.splice(i,1);else l.places.push({...p});b.innerHTML=icon('bookmark')+`<span>${esc(l.name)}</span>`+icon(i>=0?'plus':'check');persistRender()})}
+function savePlace(place){
+ const options=state.lists.map(list=>{
+  const saved=list.places.some(item=>item.id===place.id);
+  return `<button type="button" class="modal-list-option" data-save-list="${esc(list.id)}" aria-pressed="${saved}">
+   ${icon('bookmark')}<span>${esc(list.name)}</span><span class="membership-icon" aria-hidden="true">${icon(saved?'check':'plus')}</span>
+  </button>`;
+ }).join('');
+ showModal(
+  `<h2 class="modal-title">Save ${esc(place.name)}</h2>${options}<p id="save-feedback" role="status" class="save-feedback"></p>`,
+  '<button type="button" id="save-new-list" class="secondary">New list</button><button type="button" id="save-done" class="primary">Done</button>',
+ );
+ const dialog=$('#modal');
+ const buttons=[...dialog.querySelectorAll('[data-save-list]')];
+ const feedback=$('#save-feedback');
+ let writing=false;
+ const blockClose=event=>{if(writing)event.preventDefault()};
+ dialog.addEventListener('cancel',blockClose);
+ dialog.addEventListener('close',()=>dialog.removeEventListener('cancel',blockClose),{once:true});
+ dialog.dataset.saving='false';
+ $('#save-done').onclick=closeModal;
+ $('#save-new-list').onclick=()=>{if(writing)return;closeModal();newList()};
+ let confirmedAdd=false;
+ dialog.addEventListener('close',()=>{
+  if(!confirmedAdd || !isSaved(place))return;
+  const pin=savedMarkers.get(place.id)?.getElement()?.querySelector('.map-pin');
+  pin?.classList.add('pin-settled');
+ },{once:true});
+ for(const button of buttons)button.onclick=async()=>{
+  if(writing)return;
+  const lists=state.lists;
+  const list=lists.find(item=>item.id===button.dataset.saveList);
+  if(!list)return;
+  const original=list.places;
+  const add=!original.some(item=>item.id===place.id);
+  writing=true;
+  dialog.dataset.saving='true';
+  dialog.querySelectorAll('button').forEach(control=>control.setAttribute('aria-disabled','true'));
+  button.dataset.pending='true';
+  feedback.textContent='Saving…';
+  list.places=add?[...original,{...place}]:original.filter(item=>item.id!==place.id);
+  try{
+   await persist({quiet:true});
+   if(state.lists!==lists)return;
+   button.setAttribute('aria-pressed',String(add));
+   button.querySelector('.membership-icon').innerHTML=icon(add?'check':'plus');
+   feedback.textContent=add?`Saved to ${list.name}`:`Removed from ${list.name}`;
+   confirmedAdd=add||confirmedAdd;
+   renderPanel();
+   renderMap();
+   const trigger=$('[data-action="save-selected"]');
+   if(selected?.id===place.id && trigger){
+    trigger.lastChild.textContent=isSaved(place)?' Manage saved lists':' Save to a list';
+   }
+  }catch(error){
+   if(state.lists===lists)list.places=original;
+   feedback.textContent=error.message||'Couldn’t save this change. Try again.';
+   renderPanel();
+   renderMap();
+  }finally{
+   writing=false;
+   delete dialog.dataset.saving;
+   delete button.dataset.pending;
+   dialog.querySelectorAll('button').forEach(control=>control.removeAttribute('aria-disabled'));
+  }
+ };
+}
 async function search(q){const c=map.getCenter();return api(`/api/search?q=${encodeURIComponent(q)}&lat=${c.lat}&lng=${c.lng}`)}
 function searchPlace(p){return{id:`osm-${p.osm_type}-${p.osm_id}`,name:p.name||p.display_name.split(',')[0],lat:+p.lat,lng:+p.lon,category:(p.category||p.class)==='shop'?'shop':p.type==='cafe'?'cafe':(p.category||p.class)==='amenity'?'restaurant':'other',label:(p.type||'place').replaceAll('_',' '),address:p.display_name}}
 $('#search-form').addEventListener('submit',async e=>{e.preventDefault();const q=$('#search-input').value.trim();if(q.length<2)return;const nonce=++searchNonce;$('#search-results').hidden=false;$('#search-results').innerHTML='<div class="search-message loading-dot">Looking for your next stop…</div>';try{const results=await search(q);if(nonce!==searchNonce)return;$('#search-results').innerHTML=results.length?results.map((p,i)=>`<button class="search-result" data-result="${i}">${icon('pin')}<span><strong>${esc(p.name||p.display_name.split(',')[0])}</strong><small>${esc(p.display_name)}</small></span></button>`).join(''):'<div class="search-message">No places found. Try a nearby street or city.</div>';$('#search-results').querySelectorAll('[data-result]').forEach(b=>b.onclick=()=>{const p=searchPlace(results[+b.dataset.result]);$('#search-results').hidden=true;map.setView([p.lat,p.lng],16);showPlace(p);$('#city-button').firstChild.textContent=p.name+' ';loadPlaces()})}catch(err){$('#search-results').innerHTML=`<div class="search-message">${esc(err.message)}</div>`}});
@@ -142,7 +213,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){
  if(b.dataset.friend){const f=friendData.find(f=>f.id===b.dataset.friend);if(f?.sharing){layers.friends=true;renderMap();map.setView([f.lat,f.lng],16);closeMobile()}else toast('Your friend isn’t sharing a location right now.')}
  if(b.dataset.removeFriend){const f=friendData.find(f=>f.id===b.dataset.removeFriend);showModal('<h2 class="modal-title">Remove '+esc(f.name)+'?</h2><p class="modal-copy">You’ll both stop seeing each other’s shared locations. Connect again with a new invitation.</p>','<button type="button" class="secondary" id="friend-cancel">Keep friend</button><button type="button" class="primary" id="friend-remove">Remove friend</button>');$('#friend-cancel').onclick=closeModal;$('#friend-remove').onclick=async()=>{try{await api('/api/friends/'+encodeURIComponent(f.id),{method:'DELETE'});closeModal();refreshFriends()}catch(err){toast(err.message)}}}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#search-results').hidden=true;$('#map-detail').hidden=true;if(drawing)cancelDrawing()}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-place]')){e.preventDefault();showPlace(findPlace(e.target.dataset.place))}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').open){$('#search-results').hidden=true;$('#map-detail').hidden=true;if(drawing)cancelDrawing()}if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-place]')){e.preventDefault();showPlace(findPlace(e.target.dataset.place))}});
 $('#panel-close').onclick=()=>$('#sidebar').classList.remove('open');$('#mobile-panel-button').onclick=()=>{$('#sidebar').classList.add('open');if(view==='explore')setView('layers')};$('#fit-button').onclick=()=>setView('layers');$('#locate-button').onclick=locate;$('#zoom-in').onclick=()=>map.zoomIn();$('#zoom-out').onclick=()=>map.zoomOut();$('#search-area').onclick=loadPlaces;$('#about-button').onclick=showAbout;$('#account-button').onclick=account;$('#modal-close').onclick=closeModal;$('#city-button').onclick=()=>{$('#search-input').focus();$('#search-input').placeholder='Find a city or neighborhood…'};
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeModal()}});
 async function init(){if(location.hash.startsWith('#invite=')){sessionStorage.setItem('atlas-invite',location.hash.slice(8));history.replaceState(null,'','/')}renderPanel();renderMap();loadPlaces();try{config=await api('/api/config');if(config.tileURL)tiles.setUrl(config.tileURL);me=await api('/api/me');navigation.reset({view:'layers',list:null,place:null});$('#account-button').textContent=me.name.slice(0,1).toUpperCase();$('#account-button').title=me.name;const remote=await api('/api/state');if(remote.revision===0){state.revision=0;await persist()}else{state=remote}$('#sync-status').textContent='Synced with Gravitas';renderPanel();renderMap();refreshFriends()}catch(e){if(e.status!==401)$('#sync-status').textContent='Exploring on this device'}if(sessionStorage.getItem('atlas-invite'))acceptPendingInvite();if(new URLSearchParams(location.search).get('login')==='failed')toast('Sign-in wasn’t completed. Please try again.');if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{})}
