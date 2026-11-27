@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   validate:
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -33,7 +33,7 @@ jobs:
   plan:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     outputs:
       build: ${{ steps.release.outputs.build }}
       publish: ${{ steps.release.outputs.publish }}
@@ -51,7 +51,7 @@ jobs:
   release:
     if: needs.plan.outputs.build == 'true'
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     timeout-minutes: 45
     permissions:
       contents: write

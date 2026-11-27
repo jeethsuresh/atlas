@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    runs-on: gravitas-linux
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -45,7 +45,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   android:
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -65,7 +65,7 @@ jobs:
   image:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [checks, android]
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     timeout-minutes: 30
     environment: gravitas
     permissions:
@@ -97,7 +97,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.GRAVITAS_DEPLOY_ENABLED == 'true'
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: gravitas-linux
     timeout-minutes: 15
     environment:
       name: gravitas
